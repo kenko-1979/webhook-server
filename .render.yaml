@@ -3,7 +3,7 @@ services:
     name: webhook-server
     env: python
     buildCommand: pip install -r requirements.txt\
-    startCommand: gunicorn app:app
+    startCommand: startCommand: gunicorn main:app
     envVars:
       - key: PORT
         value: 10000
