@@ -7,7 +7,8 @@ app = Flask(__name__)
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 
-@app.route("/webhook", methods=["POST"],strict_slashes=False)
+@app.route("/webhook/", methods=["POST"])
+
 def webhook():
     data = request.json
     content = data.get("message", "No message")
@@ -30,6 +31,8 @@ def webhook():
     res = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
     return {"status": "success", "notion_status": res.status_code}, res.status_code
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+# この if ブロックは削除してOK
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
 
