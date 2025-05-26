@@ -7,7 +7,8 @@ app = Flask(__name__)
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
 
-@app.route("/webhook/", methods=["POST"])
+@app.route("/webhook", methods=["POST"], strict_slashes=False)
+
 
 def webhook():
     data = request.json
