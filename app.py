@@ -30,5 +30,4 @@ def webhook():
     res = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
     return {"status": "success", "notion_status": res.status_code}, res.status_code
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+
