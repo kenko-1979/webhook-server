@@ -3,6 +3,8 @@ import os
 import requests
 from dotenv import load_dotenv
 import json
+import hmac
+import hashlib
 
 # 常に.envを読み込む（開発環境でもプロダクション環境でも）
 load_dotenv()
@@ -13,6 +15,9 @@ app = Flask(__name__)
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 original_db_id = os.getenv("NOTION_DATABASE_ID")
 IS_PRODUCTION = os.getenv('FLASK_ENV') == 'production'
+
+# Webhookの検証トークンを保存するグローバル変数
+WEBHOOK_SECRET = None
 
 # デバッグ用：環境変数の値を確認
 print(f"Original Database ID: {original_db_id}")
@@ -61,6 +66,18 @@ def test_notion_connection():
         safe_log(f"Notion接続テストでエラー: {str(e)}")
         return False
 
+def verify_notion_request(request_body, signature_header):
+    """Notionからのリクエストを検証する"""
+    if not WEBHOOK_SECRET:
+        return True  # 検証トークンがない場合は検証をスキップ
+    
+    try:
+        signature = f"sha256={hmac.new(WEBHOOK_SECRET.encode(), request_body, hashlib.sha256).hexdigest()}"
+        return hmac.compare_digest(signature, signature_header)
+    except Exception as e:
+        safe_log(f"署名検証エラー: {str(e)}")
+        return False
+
 @app.route("/test", methods=["GET"])
 def test():
     return {"status": "ok"}, 200
@@ -71,61 +88,72 @@ def index():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    # デバッグ用：使用するデータベースIDを確認
-    print(f"[DEBUG] Webhook called with Database ID: {NOTION_DATABASE_ID}")
-    print(f"[DEBUG] Database ID length: {len(NOTION_DATABASE_ID) if NOTION_DATABASE_ID else 0}")
-    print(f"[DEBUG] Database ID type: {type(NOTION_DATABASE_ID)}")
+    global WEBHOOK_SECRET
     
+    # リクエストのContent-Typeチェック
     if not request.is_json:
         return {"error": "Content-Type must be application/json"}, 415
 
     try:
+        # リクエストボディを取得
+        request_body = request.get_data()
         data = request.get_json()
-        if data is None:
-            return {"error": "Invalid JSON"}, 400
-    except Exception as e:
-        return {"error": f"JSON parse error: {str(e)}"}, 400
+        
+        # Webhookの検証
+        if 'verification_token' in data:
+            # 初期検証リクエストの処理
+            WEBHOOK_SECRET = data['verification_token']
+            safe_log("Webhook検証トークンを受信しました")
+            return {"status": "success"}, 200
+            
+        # 通常のWebhookリクエストの処理
+        signature_header = request.headers.get('x-notion-signature')
+        if signature_header and not verify_notion_request(request_body, signature_header):
+            return {"error": "Invalid signature"}, 401
 
-    content = data.get("message", "No message")
-    safe_log("📥 受信内容", {"message": content})
+        content = data.get("message", "No message")
+        safe_log("📥 受信内容", {"message": content})
 
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28"
-    }
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
 
-    # デバッグ用：リクエストの詳細を表示
-    payload = {
-        "parent": {"database_id": NOTION_DATABASE_ID},
-        "properties": {
-            "名前": {
-                "title": [{"text": {"content": content}}]
-            },
-            "Status": {
-                "status": {
-                    "name": "未着手"
+        payload = {
+            "parent": {"database_id": NOTION_DATABASE_ID},
+            "properties": {
+                "名前": {
+                    "title": [{"text": {"content": content}}]
+                },
+                "Status": {
+                    "status": {
+                        "name": "未着手"
+                    }
+                },
+                "テキスト": {
+                    "rich_text": [{"text": {"content": "Webhookから自動作成されました"}}]
                 }
-            },
-            "テキスト": {
-                "rich_text": [{"text": {"content": "Webhookから自動作成されました"}}]
             }
         }
-    }
-    print(f"[DEBUG] Request payload: {json.dumps(payload, ensure_ascii=False)}")
+        print(f"[DEBUG] Request payload: {json.dumps(payload, ensure_ascii=False)}")
 
-    res = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
-    
-    safe_log("📤 Notionレスポンス", {
-        "status_code": res.status_code,
-        "notion_response": res.text
-    })
-    
-    return {
-        "status": "success" if res.status_code in [200, 201] else "error",
-        "notion_status": res.status_code,
-        "notion_response": "[REDACTED]" if IS_PRODUCTION else res.text
-    }, 200 if res.status_code in [200, 201] else 500
+        res = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
+        
+        safe_log("📤 Notionレスポンス", {
+            "status_code": res.status_code,
+            "notion_response": res.text
+        })
+        
+        return {
+            "status": "success" if res.status_code in [200, 201] else "error",
+            "notion_status": res.status_code,
+            "notion_response": "[REDACTED]" if IS_PRODUCTION else res.text
+        }, 200 if res.status_code in [200, 201] else 500
+
+    except Exception as e:
+        safe_log(f"Webhookエラー: {str(e)}")
+        return {"error": str(e)}, 500
 
 if __name__ == "__main__":
     if not NOTION_TOKEN or not original_db_id:
