@@ -2,12 +2,14 @@ services:
   - type: web
     name: webhook-server
     env: python
-    buildCommand: pip install -r requirements.txt\
-    startCommand: startCommand: gunicorn main:app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app
     envVars:
+      - key: FLASK_ENV
+        value: production
       - key: PORT
         value: 10000
       - key: NOTION_TOKEN
-        value: あとでRenderで設定
+        sync: false
       - key: NOTION_DATABASE_ID
-        value: あとでRenderで設定
+        sync: false
