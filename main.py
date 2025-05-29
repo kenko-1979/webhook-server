@@ -138,7 +138,10 @@ async def root():
     return {"message": "Notion Webhook Server is running"}
 
 # Vercel用のWSGIアプリケーション
-app = app
+# app = app  # この行を削除
+
+# FastAPIアプリケーションのインスタンスをエクスポート
+app = app  # この行は残す
 
 if __name__ == "__main__":
     if not NOTION_TOKEN or not NOTION_DATABASE_ID:
