@@ -94,10 +94,10 @@ def webhook():
     })
     
     return {
-        "status": "success" if res.status_code == 200 else "error",
+        "status": "success" if res.status_code in [200, 201] else "error",
         "notion_status": res.status_code,
         "notion_response": "[REDACTED]" if IS_PRODUCTION else res.text
-    }, 200 if res.status_code == 200 else 500
+    }, 200 if res.status_code in [200, 201] else 500
 
 if __name__ == "__main__":
     if not NOTION_TOKEN or not original_db_id:
