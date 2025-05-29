@@ -104,6 +104,7 @@ def webhook():
             # 初期検証リクエストの処理
             WEBHOOK_SECRET = data['verification_token']
             safe_log("Webhook検証トークンを受信しました")
+            safe_log(f"受信したトークン: {WEBHOOK_SECRET}")
             return {"status": "success"}, 200
             
         # 通常のWebhookリクエストの処理
