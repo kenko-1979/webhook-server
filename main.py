@@ -137,13 +137,11 @@ async def handle_webhook(request: Request):
 async def root():
     return {"message": "Notion Webhook Server is running"}
 
-# Vercel用のWSGIアプリケーション
-# app = app  # この行を削除
-
-# FastAPIアプリケーションのインスタンスをエクスポート
-app = app  # この行は残す
+# Vercel用のエントリーポイント
+app = app
 
 if __name__ == "__main__":
+    import uvicorn
     if not NOTION_TOKEN or not NOTION_DATABASE_ID:
         print("❌ 環境変数（NOTION_TOKENまたはDATABASE_ID）が未設定です")
     elif not test_notion_connection():
@@ -152,4 +150,4 @@ if __name__ == "__main__":
         safe_log("✅ Notion接続テスト成功")
         port = int(os.getenv("PORT", 10000))
         safe_log(f"🚀 サーバーを起動します（ポート: {port}）")
-        app.run(host="0.0.0.0", port=port)
+        uvicorn.run(app, host="0.0.0.0", port=port)
