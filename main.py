@@ -64,6 +64,9 @@ def create_notion_page(title, summary, content):
     # 要約とコンテンツを結合
     combined_text = f"要約:\n{summary}\n\n内容:\n{content}"
 
+    # 現在の日時を日本時間で取得（時分秒まで表示）
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
@@ -77,7 +80,7 @@ def create_notion_page(title, summary, content):
             },
             "日付": {
                 "date": {
-                    "start": datetime.now().isoformat()
+                    "start": current_time
                 }
             },
             "URL": {
