@@ -71,6 +71,10 @@ def index():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    # Notionからの認証トークンを検証
+    if request.headers.get('Notion-Token') != 'secret_********':
+        return {"error": "Invalid authentication token"}, 401
+
     # デバッグ用：使用するデータベースIDを確認
     print(f"[DEBUG] Webhook called with Database ID: {NOTION_DATABASE_ID}")
     print(f"[DEBUG] Database ID length: {len(NOTION_DATABASE_ID) if NOTION_DATABASE_ID else 0}")
