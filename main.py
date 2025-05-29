@@ -86,8 +86,7 @@ def create_notion_page(title, summary, content):
                 }
             },
             "URL": {
-                "type": "url",
-                "url": None  # nullを設定
+                "rich_text": [{"text": {"content": "https://chat.openai.com"}}]
             }
         }
     }
