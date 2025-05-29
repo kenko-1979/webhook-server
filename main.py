@@ -4,9 +4,8 @@ import requests
 from dotenv import load_dotenv
 import json
 
-# 開発環境でのみ.envを読み込む
-if os.getenv('FLASK_ENV') != 'production':
-    load_dotenv()
+# 常に.envを読み込む（開発環境でもプロダクション環境でも）
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -15,8 +14,14 @@ NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 original_db_id = os.getenv("NOTION_DATABASE_ID")
 IS_PRODUCTION = os.getenv('FLASK_ENV') == 'production'
 
-# データベースIDにハイフンを追加
-NOTION_DATABASE_ID = f"{original_db_id[:8]}-{original_db_id[8:12]}-{original_db_id[12:16]}-{original_db_id[16:20]}-{original_db_id[20:]}"
+# デバッグ用：環境変数の値を確認
+print(f"Original Database ID: {original_db_id}")
+print(f"FLASK_ENV: {os.getenv('FLASK_ENV')}")
+print(f"IS_PRODUCTION: {IS_PRODUCTION}")
+
+# データベースIDをそのまま使用（ハイフンの処理を行わない）
+NOTION_DATABASE_ID = original_db_id.strip() if original_db_id else None
+print(f"Using Database ID: {NOTION_DATABASE_ID}")
 
 def safe_log(message, data=None):
     """本番環境ではセンシティブな情報をログ出力しない"""
@@ -56,8 +61,17 @@ def test_notion_connection():
         safe_log(f"Notion接続テストでエラー: {str(e)}")
         return False
 
+@app.route("/test", methods=["GET"])
+def test():
+    return {"status": "ok"}, 200
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
+    # デバッグ用：使用するデータベースIDを確認
+    print(f"[DEBUG] Webhook called with Database ID: {NOTION_DATABASE_ID}")
+    print(f"[DEBUG] Database ID length: {len(NOTION_DATABASE_ID) if NOTION_DATABASE_ID else 0}")
+    print(f"[DEBUG] Database ID type: {type(NOTION_DATABASE_ID)}")
+    
     if not request.is_json:
         return {"error": "Content-Type must be application/json"}, 415
 
@@ -77,6 +91,7 @@ def webhook():
         "Notion-Version": "2022-06-28"
     }
 
+    # デバッグ用：リクエストの詳細を表示
     payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
@@ -93,6 +108,7 @@ def webhook():
             }
         }
     }
+    print(f"[DEBUG] Request payload: {json.dumps(payload, ensure_ascii=False)}")
 
     res = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
     
