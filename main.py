@@ -68,7 +68,7 @@ def create_notion_page(title, summary, content):
                 "title": [{"text": {"content": title}}]
             },
             "Status": {
-                "status": {
+                "select": {
                     "name": "未着手"
                 }
             },
@@ -82,6 +82,9 @@ def create_notion_page(title, summary, content):
                 "date": {
                     "start": datetime.now().isoformat()
                 }
+            },
+            "URL": {
+                "url": ""
             }
         }
     }
@@ -96,7 +99,9 @@ def create_notion_page(title, summary, content):
         if res.status_code in [200, 201]:
             return True, res.json()
         else:
-            return False, f"Notion API error: {res.status_code}"
+            error_msg = res.json().get('message', f'Notion API error: {res.status_code}')
+            safe_log("❌ Notionエラーの詳細", {"error": error_msg, "response": res.json()})
+            return False, error_msg
     except Exception as e:
         return False, str(e)
 
