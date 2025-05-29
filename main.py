@@ -61,6 +61,9 @@ def create_notion_page(title, summary, content):
         "Notion-Version": "2022-06-28"
     }
 
+    # 要約とコンテンツを結合
+    combined_text = f"要約:\n{summary}\n\n内容:\n{content}"
+
     payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
@@ -70,10 +73,7 @@ def create_notion_page(title, summary, content):
                 "title": [{"text": {"content": title}}]
             },
             "テキスト": {
-                "rich_text": [{"text": {"content": content}}]
-            },
-            "テキスト1": {
-                "rich_text": [{"text": {"content": summary}}]
+                "rich_text": [{"text": {"content": combined_text}}]
             },
             "日付": {
                 "date": {
