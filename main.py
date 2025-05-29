@@ -65,6 +65,10 @@ def test_notion_connection():
 def test():
     return {"status": "ok"}, 200
 
+@app.route("/", methods=["GET"])
+def index():
+    return {"status": "Webhook Server is running"}, 200
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     # デバッグ用：使用するデータベースIDを確認
