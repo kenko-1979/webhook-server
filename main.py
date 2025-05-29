@@ -42,11 +42,19 @@ def test_notion_connection():
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
-    res = requests.get(
-        f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}",
-        headers=headers
-    )
-    return res.status_code == 200
+    try:
+        res = requests.get(
+            f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}",
+            headers=headers
+        )
+        safe_log("Notion接続テストレスポンス", {
+            "status_code": res.status_code,
+            "response": res.text if not IS_PRODUCTION else "[REDACTED]"
+        })
+        return res.status_code in [200, 201]
+    except Exception as e:
+        safe_log(f"Notion接続テストでエラー: {str(e)}")
+        return False
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
