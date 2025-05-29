@@ -65,6 +65,8 @@ def create_notion_page(title, summary, content):
         "parent": {"database_id": NOTION_DATABASE_ID},
         "properties": {
             "名前": {
+                "id": "title",
+                "type": "title",
                 "title": [{"text": {"content": title}}]
             },
             "Status": {
@@ -84,7 +86,8 @@ def create_notion_page(title, summary, content):
                 }
             },
             "URL": {
-                "url": ""
+                "type": "url",
+                "url": None  # nullを設定
             }
         }
     }
