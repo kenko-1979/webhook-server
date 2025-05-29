@@ -69,11 +69,6 @@ def create_notion_page(title, summary, content):
                 "type": "title",
                 "title": [{"text": {"content": title}}]
             },
-            "Status": {
-                "select": {
-                    "name": "未着手"
-                }
-            },
             "テキスト": {
                 "rich_text": [{"text": {"content": content}}]
             },
