@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import json
 import hmac
 import hashlib
+from datetime import datetime
+import time
 
 # 常に.envを読み込む（開発環境でもプロダクション環境でも）
 load_dotenv()
@@ -18,6 +20,10 @@ IS_PRODUCTION = os.getenv('FLASK_ENV') == 'production'
 
 # Webhookの検証トークンを保存するグローバル変数
 WEBHOOK_SECRET = None
+
+# リクエストの重複チェック用のキャッシュ
+request_cache = {}
+CACHE_TIMEOUT = 60  # 60秒
 
 # デバッグ用：環境変数の値を確認
 print(f"Original Database ID: {original_db_id}")
@@ -78,6 +84,42 @@ def verify_notion_request(request_body, signature_header):
         safe_log(f"署名検証エラー: {str(e)}")
         return False
 
+def is_duplicate_request(request_data):
+    """リクエストの重複をチェックする"""
+    # リクエストの一意性を確保するためのキーを生成
+    request_key = json.dumps(request_data, sort_keys=True)
+    current_time = time.time()
+    
+    # 古いキャッシュエントリを削除
+    for key in list(request_cache.keys()):
+        if current_time - request_cache[key] > CACHE_TIMEOUT:
+            del request_cache[key]
+    
+    # 重複チェック
+    if request_key in request_cache:
+        return True
+    
+    # 新しいリクエストを記録
+    request_cache[request_key] = current_time
+    return False
+
+def validate_notion_response(response):
+    """Notionのレスポンスを検証する"""
+    try:
+        if not response.ok:
+            error_msg = response.json().get('message', 'Unknown error')
+            return False, f"Notion API error: {error_msg}"
+        
+        response_data = response.json()
+        required_fields = ['id', 'object', 'properties']
+        
+        if not all(field in response_data for field in required_fields):
+            return False, "Invalid Notion response format"
+        
+        return True, response_data
+    except Exception as e:
+        return False, f"Response validation error: {str(e)}"
+
 @app.route("/test", methods=["GET"])
 def test():
     return {"status": "ok"}, 200
@@ -99,12 +141,15 @@ def webhook():
         request_body = request.get_data()
         data = request.get_json()
         
+        # 重複リクエストのチェック
+        if is_duplicate_request(data):
+            return {"error": "Duplicate request", "status": "ignored"}, 409
+        
         # Webhookの検証
         if 'verification_token' in data:
             # 初期検証リクエストの処理
             WEBHOOK_SECRET = data['verification_token']
             safe_log("Webhook検証トークンを受信しました")
-            safe_log(f"受信したトークン: {WEBHOOK_SECRET}")
             return {"status": "success"}, 200
             
         # 通常のWebhookリクエストの処理
@@ -134,26 +179,38 @@ def webhook():
                 },
                 "テキスト": {
                     "rich_text": [{"text": {"content": "Webhookから自動作成されました"}}]
+                },
+                "日付": {
+                    "date": {
+                        "start": datetime.now().isoformat()
+                    }
                 }
             }
         }
-        print(f"[DEBUG] Request payload: {json.dumps(payload, ensure_ascii=False)}")
 
+        safe_log("📤 Notionリクエスト", {"payload": payload})
+        
         res = requests.post("https://api.notion.com/v1/pages", json=payload, headers=headers)
         
-        safe_log("📤 Notionレスポンス", {
+        # レスポンスの検証
+        is_valid, result = validate_notion_response(res)
+        if not is_valid:
+            safe_log("❌ Notionレスポンスの検証に失敗", {"error": result})
+            return {"error": result}, 500
+        
+        safe_log("✅ Notion登録成功", {
             "status_code": res.status_code,
-            "notion_response": res.text
+            "page_id": result.get("id")
         })
         
         return {
-            "status": "success" if res.status_code in [200, 201] else "error",
+            "status": "success",
             "notion_status": res.status_code,
-            "notion_response": "[REDACTED]" if IS_PRODUCTION else res.text
-        }, 200 if res.status_code in [200, 201] else 500
+            "page_id": result.get("id")
+        }, 200
 
     except Exception as e:
-        safe_log(f"Webhookエラー: {str(e)}")
+        safe_log(f"❌ Webhookエラー: {str(e)}")
         return {"error": str(e)}, 500
 
 if __name__ == "__main__":
