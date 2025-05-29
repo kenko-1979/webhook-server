@@ -65,9 +65,11 @@ if test_notion_connection():
 else:
     print("🛑 Please fix Notion connection issues before testing webhook")
 
-def test_chat_endpoint(message, title, content, summary):
+def test_chat_endpoint(message, title, content, summary, is_production=False):
     """チャットエンドポイントをテストする"""
-    url = "http://localhost:10000/chat"
+    # 本番環境のURLを使用するかローカルのURLを使用するか
+    base_url = "https://webhook-server-c2h0.onrender.com" if is_production else "http://localhost:10000"
+    url = f"{base_url}/chat"
     
     payload = {
         "message": message,
@@ -81,21 +83,31 @@ def test_chat_endpoint(message, title, content, summary):
     }
     
     try:
+        print(f"\n🚀 Testing endpoint: {url}")
+        print(f"📦 Payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
+        
         response = requests.post(url, json=payload, headers=headers)
-        print(f"Status Code: {response.status_code}")
-        print(f"Response: {response.json()}")
+        print(f"📡 Status Code: {response.status_code}")
+        print(f"📬 Response: {json.dumps(response.json(), ensure_ascii=False, indent=2)}")
         return response
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"❌ Error: {str(e)}")
         return None
 
 if __name__ == "__main__":
+    # 本番環境でテストを実行するかどうか
+    IS_PRODUCTION = True  # Trueに設定すると本番環境、Falseでローカル環境
+    
+    print("=== Notion Webhook Server Test ===")
+    print(f"🌍 Environment: {'Production' if IS_PRODUCTION else 'Local'}")
+    
     # テストケース1: 保存トリガーあり
     test_chat_endpoint(
         message="要約送信",
         title="テスト会話1",
         content="これはテスト用の会話内容です。長い会話の全文がここに入ります。",
-        summary="テスト用の会話のサマリーです。"
+        summary="テスト用の会話のサマリーです。",
+        is_production=IS_PRODUCTION
     )
     
     # テストケース2: 保存トリガーなし
@@ -103,7 +115,8 @@ if __name__ == "__main__":
         message="普通の会話",
         title="テスト会話2",
         content="これは保存されないはずの会話です。",
-        summary="保存されないサマリー"
+        summary="保存されないサマリー",
+        is_production=IS_PRODUCTION
     )
    
 
