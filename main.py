@@ -11,12 +11,14 @@ import json
 load_dotenv()
 
 app = FastAPI()
-notion = Client(auth=os.environ["NOTION_API_KEY"])
 
 # 環境変数の取得
-NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+NOTION_API_KEY = os.getenv("NOTION_API_KEY")
 NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID").strip() if os.getenv("NOTION_DATABASE_ID") else None
 IS_PRODUCTION = os.getenv('FLASK_ENV') == 'production'
+
+# Notionクライアントの初期化
+notion = Client(auth=NOTION_API_KEY)
 
 def safe_log(message, data=None):
     """本番環境ではセンシティブな情報をログ出力しない"""
@@ -38,7 +40,7 @@ def safe_log(message, data=None):
 def test_notion_connection():
     """トークンとデータベースIDの正当性を確認"""
     headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
+        "Authorization": f"Bearer {NOTION_API_KEY}",
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
@@ -59,7 +61,7 @@ def test_notion_connection():
 def create_notion_page(title, summary, content):
     """Notionページを作成する"""
     headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
+        "Authorization": f"Bearer {NOTION_API_KEY}",
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
@@ -137,13 +139,14 @@ async def handle_webhook(request: Request):
 async def root():
     return {"message": "Notion Webhook Server is running"}
 
-# Vercel用のエントリーポイント
-app = app
+# Vercelのサーバーレス関数用のエントリーポイント
+from mangum import Adapter
+handler = Adapter(app)
 
 if __name__ == "__main__":
     import uvicorn
-    if not NOTION_TOKEN or not NOTION_DATABASE_ID:
-        print("❌ 環境変数（NOTION_TOKENまたはDATABASE_ID）が未設定です")
+    if not NOTION_API_KEY or not NOTION_DATABASE_ID:
+        print("❌ 環境変数（NOTION_API_KEYまたはDATABASE_ID）が未設定です")
     elif not test_notion_connection():
         print("❌ Notionの接続テストに失敗しました。トークンまたはDatabase IDを確認してください。")
     else:
